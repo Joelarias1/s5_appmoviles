@@ -8,8 +8,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-//Accesibilidad
-
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -17,23 +15,22 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import com.example.s2joelarias.model.Gender
 import com.example.s2joelarias.screens.viewmodel.UserViewModel
-
-
-// Estilizacion
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ArrowBack
+import com.example.s2joelarias.screens.viewmodel.RegistrationState
 
 @Composable
 fun RegisterScreen(navController: NavController, viewModel: UserViewModel) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    var isError by remember { mutableStateOf(false) }
     var acceptTerms by remember { mutableStateOf(false) }
     var selectedGender by remember { mutableStateOf<Gender?>(null) }
+
+    val registrationState = viewModel.registrationState.value
 
     Column(
         modifier = Modifier
@@ -77,7 +74,7 @@ fun RegisterScreen(navController: NavController, viewModel: UserViewModel) {
                 .fillMaxWidth()
                 .semantics { contentDescription = "Campo de correo electrónico" },
             supportingText = { Text("Ingrese su correo electrónico") },
-            isError = isError,
+            isError = registrationState is RegistrationState.Error,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Email,
                 imeAction = ImeAction.Next
@@ -130,7 +127,7 @@ fun RegisterScreen(navController: NavController, viewModel: UserViewModel) {
                 .fillMaxWidth()
                 .semantics { contentDescription = "Campo de contraseña" },
             supportingText = { Text("Ingrese su contraseña") },
-            isError = isError,
+            isError = registrationState is RegistrationState.Error,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Password,
@@ -159,7 +156,7 @@ fun RegisterScreen(navController: NavController, viewModel: UserViewModel) {
                 .fillMaxWidth()
                 .semantics { contentDescription = "Campo de confirmación de contraseña" },
             supportingText = { Text("Confirme su contraseña") },
-            isError = isError,
+            isError = registrationState is RegistrationState.Error,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Password,
@@ -170,6 +167,14 @@ fun RegisterScreen(navController: NavController, viewModel: UserViewModel) {
                 focusedLabelColor = MaterialTheme.colorScheme.primary
             )
         )
+
+        if (registrationState is RegistrationState.Error) {
+            Text(
+                text = registrationState.message,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -192,17 +197,14 @@ fun RegisterScreen(navController: NavController, viewModel: UserViewModel) {
 
         Button(
             onClick = {
-                selectedGender?.let { gender ->
-                    if (viewModel.validatePasswords(password, confirmPassword)) {
-                        val success = viewModel.addUser(email, password, gender)
-                        if (success) {
-                            navController.navigateUp()
-                        } else {
-                            isError = true
-                        }
-                    } else {
-                        isError = true
+                if (viewModel.validatePasswords(password, confirmPassword)) {
+                    selectedGender?.let { gender ->
+                        viewModel.registerUser(email, password, gender, acceptTerms)
                     }
+                } else {
+                    viewModel.updateRegistrationState(
+                        RegistrationState.Error("Las contraseñas no coinciden o son muy cortas")
+                    )
                 }
             },
             modifier = Modifier
@@ -212,14 +214,24 @@ fun RegisterScreen(navController: NavController, viewModel: UserViewModel) {
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ),
-            enabled = acceptTerms && selectedGender != null
+            enabled = acceptTerms && selectedGender != null &&
+                    email.isNotBlank() && password.isNotBlank() &&
+                    confirmPassword.isNotBlank() &&
+                    registrationState !is RegistrationState.Loading
         ) {
-            Icon(Icons.Default.Person, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                "Registrarse",
-                fontSize = MaterialTheme.typography.bodyLarge.fontSize
-            )
+            if (registrationState is RegistrationState.Loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Icon(Icons.Default.Person, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    "Registrarse",
+                    fontSize = MaterialTheme.typography.bodyLarge.fontSize
+                )
+            }
         }
 
         TextButton(
@@ -239,6 +251,18 @@ fun RegisterScreen(navController: NavController, viewModel: UserViewModel) {
                 fontSize = MaterialTheme.typography.bodyMedium.fontSize,
                 color = MaterialTheme.colorScheme.primary
             )
+        }
+
+        // Navegar automáticamente cuando el registro es exitoso
+        LaunchedEffect(registrationState) {
+            when (registrationState) {
+                is RegistrationState.Success -> {
+                    navController.navigate("login") {
+                        popUpTo("register") { inclusive = true }
+                    }
+                }
+                else -> {}
+            }
         }
     }
 }

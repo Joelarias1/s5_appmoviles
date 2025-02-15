@@ -1,7 +1,5 @@
 package com.example.s2joelarias.screens
 
-import android.graphics.drawable.Icon
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,30 +8,26 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-//Accesibilidad
-
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import com.example.s2joelarias.screens.viewmodel.UserViewModel
-
-//Estilizacion
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-
+import com.example.s2joelarias.screens.viewmodel.LoginState
 
 @Composable
 fun LoginScreen(navController: NavController, viewModel: UserViewModel) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var isError by remember { mutableStateOf(false) }
+
+    // Observar el estado del login
+    val loginState = viewModel.loginState.value
 
     Column(
         modifier = Modifier
@@ -106,10 +100,7 @@ fun LoginScreen(navController: NavController, viewModel: UserViewModel) {
 
                 OutlinedTextField(
                     value = email,
-                    onValueChange = {
-                        email = it
-                        isError = false
-                    },
+                    onValueChange = { email = it },
                     label = { Text("Email") },
                     leadingIcon = {
                         Icon(
@@ -121,7 +112,7 @@ fun LoginScreen(navController: NavController, viewModel: UserViewModel) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .semantics { contentDescription = "Campo para ingresar correo electrónico" },
-                    isError = isError,
+                    isError = loginState is LoginState.Error,
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     keyboardOptions = KeyboardOptions(
@@ -139,10 +130,7 @@ fun LoginScreen(navController: NavController, viewModel: UserViewModel) {
 
                 OutlinedTextField(
                     value = password,
-                    onValueChange = {
-                        password = it
-                        isError = false
-                    },
+                    onValueChange = { password = it },
                     label = { Text("Contraseña") },
                     leadingIcon = {
                         Icon(
@@ -154,7 +142,7 @@ fun LoginScreen(navController: NavController, viewModel: UserViewModel) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .semantics { contentDescription = "Campo para ingresar contraseña" },
-                    isError = isError,
+                    isError = loginState is LoginState.Error,
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     visualTransformation = PasswordVisualTransformation(),
@@ -169,12 +157,12 @@ fun LoginScreen(navController: NavController, viewModel: UserViewModel) {
                     )
                 )
 
-                if (isError) {
+                // Mostrar mensaje de error si existe
+                if (loginState is LoginState.Error) {
                     Text(
-                        if (email.isBlank() || password.isBlank()) {
-                            "Por favor complete todos los campos"
-                        } else {
-                            "Las credenciales ingresadas no son válidas"
+                        text = when {
+                            email.isBlank() || password.isBlank() -> "Por favor complete todos los campos"
+                            else -> loginState.message
                         },
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
@@ -189,36 +177,38 @@ fun LoginScreen(navController: NavController, viewModel: UserViewModel) {
                 ElevatedButton(
                     onClick = {
                         if (email.isBlank() || password.isBlank()) {
-                            isError = true
+                            viewModel.updateLoginState(LoginState.Error("Por favor complete todos los campos"))
                             return@ElevatedButton
                         }
-                        if (viewModel.validateLogin(email, password)) {
-                            navController.navigate("dashboard") {
-                                popUpTo("login") { inclusive = true }
-                            }
-                        } else {
-                            isError = true
-                        }
+                        viewModel.loginUser(email, password)
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp)
                         .semantics { contentDescription = "Botón para iniciar sesión" },
+                    enabled = loginState !is LoginState.Loading,
                     colors = ButtonDefaults.elevatedButtonColors(
                         containerColor = MaterialTheme.colorScheme.primary
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Icon(
-                        Icons.Default.Login,
-                        contentDescription = "Ícono de inicio de sesión",
-                        tint = Color.White
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "Iniciar Sesión",
-                        color = Color.White
-                    )
+                    if (loginState is LoginState.Loading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Login,
+                            contentDescription = "Ícono de inicio de sesión",
+                            tint = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Iniciar Sesión",
+                            color = Color.White
+                        )
+                    }
                 }
 
                 Row(
@@ -245,6 +235,18 @@ fun LoginScreen(navController: NavController, viewModel: UserViewModel) {
                         Text("¿Olvidaste tu contraseña?")
                     }
                 }
+            }
+        }
+
+        // Navegar automáticamente cuando el login es exitoso
+        LaunchedEffect(loginState) {
+            when (loginState) {
+                is LoginState.Success -> {
+                    navController.navigate("dashboard") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                }
+                else -> {}
             }
         }
     }

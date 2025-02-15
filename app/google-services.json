@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "86314330085",
+    "firebase_url": "https://kotlinapp-a000b-default-rtdb.firebaseio.com",
+    "project_id": "kotlinapp-a000b",
+    "storage_bucket": "kotlinapp-a000b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:86314330085:android:d5ccca9ae7f2a3a54df10c",
+        "android_client_info": {
+          "package_name": "com.example.s2joelarias"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCBx58spkxQ79NqCy6luOzzfux605KeBUI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
