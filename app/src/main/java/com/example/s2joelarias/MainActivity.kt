@@ -18,6 +18,7 @@ import com.example.s2joelarias.screens.RecoveryScreen
 import com.example.s2joelarias.screens.RegisterScreen
 import com.example.s2joelarias.screens.UserDashboardScreen
 import com.example.s2joelarias.screens.viewmodel.UserViewModel
+import com.example.s2joelarias.screens.AccessibilityScreen
 
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
@@ -69,6 +70,9 @@ class MainActivity : ComponentActivity() {
                     }
                     composable("dashboard") {
                         UserDashboardScreen(navController, userViewModel)
+                    }
+                    composable("accessibility") {
+                        AccessibilityScreen(navController, userViewModel)
                     }
                 }
             }

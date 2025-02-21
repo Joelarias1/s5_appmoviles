@@ -44,6 +44,46 @@ class UserViewModel : ViewModel() {
         expenses.sumOf { it.amount }
     }
 
+    //    para tomar el nombre del user
+    private val _currentUserName = mutableStateOf<String?>(null)
+    val currentUserName: State<String?> = _currentUserName
+
+    fun updateCurrentUserName(name: String) {
+        _currentUserName.value = name
+    }
+
+    fun getAccessibilityData(userId: String, onSuccess: (Map<String, String>) -> Unit, onFailure: (Exception) -> Unit) {
+        usersRef.child(userId).child("accessibility").get()
+            .addOnSuccessListener { snapshot ->
+                val data = snapshot.value as? Map<String, String>
+                if (data != null) {
+                    onSuccess(data)
+                } else {
+                    onFailure(Exception("No se encontraron datos de accesibilidad"))
+                }
+            }
+            .addOnFailureListener { e ->
+                onFailure(e)
+            }
+    }
+
+    fun saveAccessibilityData(accessibilityOption: String, description: String) {
+        val currentUser = auth.currentUser
+        currentUser?.let { user ->
+            val accessibilityData = mapOf(
+                "accessibilityOption" to accessibilityOption,
+                "description" to description
+            )
+            usersRef.child(user.uid).child("accessibility").setValue(accessibilityData)
+                .addOnSuccessListener {
+                    // Datos guardados exitosamente
+                }
+                .addOnFailureListener { e ->
+                    // Manejar el error
+                }
+        }
+    }
+
     init {
         _expenses.addAll(
             listOf(
@@ -78,6 +118,8 @@ class UserViewModel : ViewModel() {
                     firebaseUser?.uid?.let { uid ->
                         usersRef.child(uid).setValue(user.toMap())
                             .addOnSuccessListener {
+                                // Actualizar el nombre usando el email
+                                _currentUserName.value = email.substringBefore('@')
                                 _registrationState.value = RegistrationState.Success
                                 _users.value = _users.value + user
                             }
@@ -101,6 +143,16 @@ class UserViewModel : ViewModel() {
         auth.signInWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
+                    // Obtener datos del usuario
+                    auth.currentUser?.let { firebaseUser ->
+                        _currentUserName.value = email.substringBefore('@') // Como solución temporal
+                        // O si quieres obtener el nombre desde la base de datos:
+                        usersRef.child(firebaseUser.uid).get()
+                            .addOnSuccessListener { snapshot ->
+                                val userEmail = snapshot.child("email").value as? String
+                                _currentUserName.value = userEmail?.substringBefore('@') ?: "Usuario"
+                            }
+                    }
                     _loginState.value = LoginState.Success
                 } else {
                     _loginState.value = LoginState.Error(
@@ -117,8 +169,8 @@ class UserViewModel : ViewModel() {
     fun logout() {
         auth.signOut()
         _loginState.value = LoginState.Idle
+        _currentUserName.value = null  // Limpiar el nombre al cerrar sesión
     }
-
     fun getCurrentUser(): User? {
         return auth.currentUser?.let { firebaseUser ->
             User(

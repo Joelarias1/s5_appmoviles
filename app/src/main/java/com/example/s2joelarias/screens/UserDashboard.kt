@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.net.Uri
+import android.speech.tts.TextToSpeech
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -28,6 +29,7 @@ import androidx.navigation.NavController
 import com.example.s2joelarias.screens.viewmodel.UserViewModel
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
+import java.util.Locale
 
 private fun getCurrentLocation(
     context: Context,
@@ -168,7 +170,6 @@ private fun getCategoryIcon(iconHash: Int): ImageVector {
 @Composable
 fun UserDashboardScreen(navController: NavController, viewModel: UserViewModel) {
     val users by viewModel.users
-    val lastUser = users.lastOrNull()
     val totalExpenses = viewModel.calculateTotal(viewModel.expenses)
 
     // Ubicación
@@ -191,28 +192,35 @@ fun UserDashboardScreen(navController: NavController, viewModel: UserViewModel) 
         topBar = {
             TopAppBar(
                 title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Start
-                    ) {
-                        Icon(
-                            Icons.Default.AccountBalance,
-                            contentDescription = "Ícono de finanzas",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "Mis Finanzas",
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.titleLarge
-                        )
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Start
+                        ) {
+                            Icon(
+                                Icons.Default.AccountBalance,
+                                contentDescription = "Ícono de finanzas",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Mis Finanzas",
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                        }
+                        viewModel.currentUserName.value?.let { userName ->
+                            Text(
+                                text = "¡Hola, $userName!",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
                     }
                 },
                 actions = {
                     // Botón de ubicación
-                    IconButton(
-                        onClick = { showATMDialog = true }
-                    ) {
+                    IconButton(onClick = { showATMDialog = true }) {
                         Icon(
                             Icons.Default.LocationOn,
                             contentDescription = "Buscar cajeros",
@@ -245,6 +253,32 @@ fun UserDashboardScreen(navController: NavController, viewModel: UserViewModel) 
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Tarjeta de bienvenida
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    viewModel.currentUserName.value?.let { userName ->
+                        Text(
+                            "¡Bienvenido/a $userName!",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Text(
+                        "Gestiona tus finanzas de manera fácil y accesible",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+
             // Resumen Financiero
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -351,6 +385,49 @@ fun UserDashboardScreen(navController: NavController, viewModel: UserViewModel) 
                     }
                 }
             }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "Herramientas de Accesibilidad",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { navController.navigate("accessibility") },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Datos de user")
+                        }
+                        Button(
+                            onClick = { /* TODO: Tutorial */ },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary
+                            )
+                        ) {
+                            Icon(Icons.Default.Help, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Tutorial")
+                        }
+                    }
+                }
+            }
 
             // Mostrar ubicación si está disponible
             viewModel.location.value?.let { location ->
@@ -395,9 +472,13 @@ fun UserDashboardScreen(navController: NavController, viewModel: UserViewModel) 
                         Text("Lon: ${location.longitude}")
                     }
                 }
+
             }
         }
+
     }
+
+
 
     // Diálogo de ATMs
     if (showATMDialog) {
